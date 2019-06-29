@@ -14,13 +14,13 @@
 #include "masternode-sync.h"
 #include "net.h"
 #include "netbase.h"
-#include "rpcserver.h"
+#include "rpc/server.h"
 #include "spork.h"
 #include "timedata.h"
 #include "util.h"
 #ifdef ENABLE_WALLET
-#include "wallet.h"
-#include "walletdb.h"
+#include "wallet/wallet.h"
+#include "wallet/walletdb.h"
 #endif
 
 #include <stdint.h>
@@ -57,8 +57,8 @@ UniValue getinfo(const UniValue& params, bool fHelp)
             "  \"version\": xxxxx,           (numeric) the server version\n"
             "  \"protocolversion\": xxxxx,   (numeric) the protocol version\n"
             "  \"walletversion\": xxxxx,     (numeric) the wallet version\n"
-            "  \"balance\": xxxxxxx,         (numeric) the total livenodes balance of the wallet\n"
-            "  \"obfuscation_balance\": xxxxxx, (numeric) the anonymized balance of the wallet\n"
+            "  \"balance\": xxxxxxx,         (numeric) the total pivx balance of the wallet (excluding zerocoins)\n"
+            "  \"zerocoinbalance\": xxxxxxx, (numeric) the total zerocoin balance of the wallet\n"
             "  \"blocks\": xxxxxx,           (numeric) the current number of blocks processed in the server\n"
             "  \"timeoffset\": xxxxx,        (numeric) the time offset\n"
             "  \"connections\": xxxxx,       (numeric) the number of connections\n"
@@ -253,7 +253,6 @@ UniValue spork(const UniValue& params, bool fHelp)
 
         //broadcast new spork
         if (sporkManager.UpdateSpork(nSporkID, nValue)) {
-            ExecuteSpork(nSporkID, nValue);
             return "success";
         } else {
             return "failure";

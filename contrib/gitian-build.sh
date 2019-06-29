@@ -395,6 +395,15 @@ then
 	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../livenodes/contrib/gitian-descriptors/gitian-osx-signer.yml
 	    mv build/out/livenodes-osx-signed.dmg ../livenodes-binaries/${VERSION}/livenodes-${VERSION}-osx.dmg
 	fi
+	# AArch64
+	if [[ $aarch64 = true ]]
+	then
+	    echo ""
+	    echo "Compiling ${VERSION} AArch64"
+	    echo ""
+	    ./bin/gbuild -j ${proc} -m ${mem} --commit pivx=${COMMIT} --url pivx=${url} ../pivx/contrib/gitian-descriptors/gitian-aarch64.yml
+	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-aarch64 --destination ../gitian.sigs/ ../pivx/contrib/gitian-descriptors/gitian-aarch64.yml
+	    mv build/out/pivx-*.tar.gz build/out/src/pivx-*.tar.gz ../pivx-binaries/${VERSION}
 	popd
 
         if [[ $commitFiles = true ]]

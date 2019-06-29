@@ -19,7 +19,7 @@
 #include "obfuscation.h"
 #include "primitives/transaction.h"
 #include "ui_interface.h"
-#include "wallet.h"
+#include "wallet/wallet.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -220,7 +220,7 @@ bool IsPeerAddrLocalGood(CNode* pnode)
 }
 
 // pushes our own address to a peer
-void AdvertiseLocal(CNode* pnode)
+void AdvertizeLocal(CNode* pnode)
 {
     if (fListen && pnode->fSuccessfullyConnected) {
         CAddress addrLocal = GetLocalAddress(&pnode->addr);
@@ -571,7 +571,7 @@ void CNode::copyStats(CNodeStats& stats)
         nPingUsecWait = GetTimeMicros() - nPingUsecStart;
     }
 
-    // Raw ping time is in microseconds, but show it to user as whole seconds (LivenodesCoin users should be well used to small numbers with many decimal places by now :)
+    // Raw ping time is in microseconds, but show it to user as whole seconds (PIVX users should be well used to small numbers with many decimal places by now :)
     stats.dPingTime = (((double)nPingUsecTime) / 1e6);
     stats.dPingWait = (((double)nPingUsecWait) / 1e6);
 
@@ -1231,9 +1231,6 @@ void ThreadOpenConnections()
 
         int nTries = 0;
         while (true) {
-
-            MilliSleep(100);
-
             CAddress addr = addrman.Select();
 
             // if we selected an invalid address, restart
@@ -1279,10 +1276,10 @@ void ThreadOpenAddedConnections()
             list<string> lAddresses(0);
             {
                 LOCK(cs_vAddedNodes);
-                BOOST_FOREACH (string& strAddNode, vAddedNodes)
+                for (string& strAddNode : vAddedNodes)
                     lAddresses.push_back(strAddNode);
             }
-            BOOST_FOREACH (string& strAddNode, lAddresses) {
+            for (string& strAddNode : lAddresses) {
                 CAddress addr;
                 CSemaphoreGrant grant(*semOutbound);
                 OpenNetworkConnection(addr, &grant, strAddNode.c_str());
@@ -1296,18 +1293,18 @@ void ThreadOpenAddedConnections()
         list<string> lAddresses(0);
         {
             LOCK(cs_vAddedNodes);
-            BOOST_FOREACH (string& strAddNode, vAddedNodes)
+            for (string& strAddNode : vAddedNodes)
                 lAddresses.push_back(strAddNode);
         }
 
         list<vector<CService> > lservAddressesToAdd(0);
-        BOOST_FOREACH (string& strAddNode, lAddresses) {
+        for (string& strAddNode : lAddresses) {
             vector<CService> vservNode(0);
             if (Lookup(strAddNode.c_str(), vservNode, Params().GetDefaultPort(), fNameLookup, 0)) {
                 lservAddressesToAdd.push_back(vservNode);
                 {
                     LOCK(cs_setservAddNodeAddresses);
-                    BOOST_FOREACH (CService& serv, vservNode)
+                    for (CService& serv : vservNode)
                         setservAddNodeAddresses.insert(serv);
                 }
             }
@@ -1316,16 +1313,16 @@ void ThreadOpenAddedConnections()
         // (keeping in mind that addnode entries can have many IPs if fNameLookup)
         {
             LOCK(cs_vNodes);
-            BOOST_FOREACH (CNode* pnode, vNodes)
+            for (CNode* pnode : vNodes)
                 for (list<vector<CService> >::iterator it = lservAddressesToAdd.begin(); it != lservAddressesToAdd.end(); it++)
-                    BOOST_FOREACH (CService& addrNode, *(it))
+                    for (CService& addrNode : *(it))
                         if (pnode->addr == addrNode) {
                             it = lservAddressesToAdd.erase(it);
                             it--;
                             break;
                         }
         }
-        BOOST_FOREACH (vector<CService>& vserv, lservAddressesToAdd) {
+        for (vector<CService>& vserv : lservAddressesToAdd) {
             CSemaphoreGrant grant(*semOutbound);
             OpenNetworkConnection(CAddress(vserv[i % vserv.size()]), &grant);
             MilliSleep(500);
@@ -1369,8 +1366,6 @@ void ThreadMessageHandler()
     boost::mutex condition_mutex;
     boost::unique_lock<boost::mutex> lock(condition_mutex);
 
-    static int64_t nLastRebroadcast = 0;
-
     SetThreadPriority(THREAD_PRIORITY_BELOW_NORMAL);
     while (true) {
         vector<CNode*> vNodesCopy;
@@ -1383,16 +1378,13 @@ void ThreadMessageHandler()
         }
 
         // Poll the connected nodes for messages
-        CNode* pnodeTrickle = nullptr;
+        CNode* pnodeTrickle = NULL;
         if (!vNodesCopy.empty())
             pnodeTrickle = vNodesCopy[GetRand(vNodesCopy.size())];
 
         bool fSleep = true;
 
-        bool performRebroadcast = !IsInitialBlockDownload() && (GetTime() - nLastRebroadcast > 24 * 60 * 60);
-
         for (CNode* pnode : vNodesCopy) {
-
             if (pnode->fDisconnect)
                 continue;
 
@@ -1415,26 +1407,12 @@ void ThreadMessageHandler()
             // Send messages
             {
                 TRY_LOCK(pnode->cs_vSend, lockSend);
-
-                if(lockSend) {
-
+                if (lockSend)
                     g_signals.SendMessages(pnode, pnode == pnodeTrickle || pnode->fWhitelisted);
-
-                    if(performRebroadcast) {
-
-                        // Periodically clear setAddrKnown to allow refresh broadcasts
-                        if (nLastRebroadcast)
-                            pnode->setAddrKnown.clear();
-
-                        // Rebroadcast our address
-                        AdvertiseLocal(pnode);
-
-                        nLastRebroadcast = GetTime();
-                    }
-                }
             }
             boost::this_thread::interruption_point();
         }
+
 
         {
             LOCK(cs_vNodes);
@@ -1446,6 +1424,7 @@ void ThreadMessageHandler()
             messageHandlerCondition.timed_wait(lock, boost::posix_time::microsec_clock::universal_time() + boost::posix_time::milliseconds(100));
     }
 }
+
 
 // ppcoin: stake minter thread
 void static ThreadStakeMinter()
@@ -1563,7 +1542,7 @@ void static Discover(boost::thread_group& threadGroup)
     if (gethostname(pszHostName, sizeof(pszHostName)) != SOCKET_ERROR) {
         vector<CNetAddr> vaddr;
         if (LookupHost(pszHostName, vaddr)) {
-            BOOST_FOREACH (const CNetAddr& addr, vaddr) {
+            for (const CNetAddr& addr : vaddr) {
                 if (AddLocal(addr, LOCAL_IF))
                     LogPrintf("%s: %s - %s\n", __func__, pszHostName, addr.ToString());
             }
@@ -1676,18 +1655,18 @@ public:
     ~CNetCleanup()
     {
         // Close sockets
-        BOOST_FOREACH (CNode* pnode, vNodes)
+        for (CNode* pnode : vNodes)
             if (pnode->hSocket != INVALID_SOCKET)
                 CloseSocket(pnode->hSocket);
-        BOOST_FOREACH (ListenSocket& hListenSocket, vhListenSocket)
+        for (ListenSocket& hListenSocket : vhListenSocket)
             if (hListenSocket.socket != INVALID_SOCKET)
                 if (!CloseSocket(hListenSocket.socket))
                     LogPrintf("CloseSocket(hListenSocket) failed with error %s\n", NetworkErrorString(WSAGetLastError()));
 
         // clean up some globals (to help leak detection)
-        BOOST_FOREACH (CNode* pnode, vNodes)
+        for (CNode* pnode : vNodes)
             delete pnode;
-        BOOST_FOREACH (CNode* pnode, vNodesDisconnected)
+        for (CNode* pnode : vNodesDisconnected)
             delete pnode;
         vNodes.clear();
         vNodesDisconnected.clear();
@@ -1736,7 +1715,7 @@ void RelayTransaction(const CTransaction& tx, const CDataStream& ss)
         vRelayExpiration.push_back(std::make_pair(GetTime() + 15 * 60, inv));
     }
     LOCK(cs_vNodes);
-    BOOST_FOREACH (CNode* pnode, vNodes) {
+    for (CNode* pnode : vNodes) {
         if (!pnode->fRelayTxes)
             continue;
         LOCK(pnode->cs_filter);
@@ -1754,7 +1733,7 @@ void RelayTransactionLockReq(const CTransaction& tx, bool relayToAll)
 
     //broadcast the new lock
     LOCK(cs_vNodes);
-    BOOST_FOREACH (CNode* pnode, vNodes) {
+    for (CNode* pnode : vNodes) {
         if (!relayToAll && !pnode->fRelayTxes)
             continue;
 
@@ -1765,8 +1744,8 @@ void RelayTransactionLockReq(const CTransaction& tx, bool relayToAll)
 void RelayInv(CInv& inv)
 {
     LOCK(cs_vNodes);
-    BOOST_FOREACH (CNode* pnode, vNodes){
-        if((pnode->nServices==NODE_BLOOM_WITHOUT_MN) && inv.IsMasterNodeType())continue;
+    for (CNode* pnode : vNodes){
+        if(inv.IsMasterNodeType())continue;
         if (pnode->nVersion >= ActiveProtocol())
             pnode->PushInventory(inv);
     }

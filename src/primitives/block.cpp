@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
-// Copyright (c) 2015-2017 The PIVX developers
+// Copyright (c) 2015-2019 The PIVX developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -16,7 +16,6 @@
 
 uint256 CBlockHeader::GetHash() const
 {
-    //return HashKeccak256(BEGIN(nVersion), END(nNonce));
     return Hash9(BEGIN(nVersion), END(nNonce));
 }
 
@@ -73,7 +72,7 @@ uint256 CBlock::BuildMerkleTree(bool* fMutated) const
                 mutated = true;
             }
             vMerkleTree.push_back(Hash(BEGIN(vMerkleTree[j+i]),  END(vMerkleTree[j+i]),
-                                        BEGIN(vMerkleTree[j+i2]), END(vMerkleTree[j+i2])));
+                                       BEGIN(vMerkleTree[j+i2]), END(vMerkleTree[j+i2])));
         }
         j += nSize;
     }
@@ -140,7 +139,6 @@ void CBlock::print() const
     LogPrintf("%s", ToString());
 }
 
-// ppcoin: sign block
 bool CBlock::SignBlock(const CKeyStore& keystore)
 {
     std::vector<valtype> vSolutions;

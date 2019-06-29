@@ -655,6 +655,14 @@ case $basic_machine in
 		basic_machine=powerpc-`echo $basic_machine | sed 's/^[^-]*-//'`
 		os=$os"spe"
 		;;
+	e500v[12])
+		basic_machine=powerpc-unknown
+		os=$os"spe"
+		;;
+	e500v[12]-*)
+		basic_machine=powerpc-`echo $basic_machine | sed 's/^[^-]*-//'`
+		os=$os"spe"
+		;;
 	ebmon29k)
 		basic_machine=a29k-amd
 		os=-ebmon
@@ -1645,6 +1653,9 @@ case $basic_machine in
 		;;
 	sparc-* | *-sun)
 		os=-sunos4.1.1
+		;;
+	pru-*)
+		os=-elf
 		;;
 	pru-*)
 		os=-elf

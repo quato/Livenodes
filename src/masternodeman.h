@@ -14,6 +14,7 @@
 #include "sync.h"
 #include "util.h"
 
+#define MASTERNODES_DUMP_SECONDS (15 * 60)
 #define MASTERNODES_DSEG_SECONDS (3 * 60 * 60)
 
 using namespace std;
@@ -64,10 +65,6 @@ private:
     std::map<CNetAddr, int64_t> mWeAskedForMasternodeList;
     // which Masternodes we've asked for
     std::map<COutPoint, int64_t> mWeAskedForMasternodeListEntry;
-    // who's asked for the winning Masternode list and the last time
-    std::map<CNetAddr, int64_t> mAskedUsForWinnerMasternodeList;
-    // who we asked for the winning Masternode list and the last time
-    std::map<CNetAddr, int64_t> mWeAskedForWinnerMasternodeList;
 
 public:
     // Keep track of all broadcasts I've seen
@@ -88,8 +85,6 @@ public:
         READWRITE(mAskedUsForMasternodeList);
         READWRITE(mWeAskedForMasternodeList);
         READWRITE(mWeAskedForMasternodeListEntry);
-        READWRITE(mAskedUsForWinnerMasternodeList);
-        READWRITE(mWeAskedForWinnerMasternodeList);
         READWRITE(nDsqCount);
 
         READWRITE(mapSeenMasternodeBroadcast);
@@ -102,7 +97,7 @@ public:
     static CValidationState GetInputCheckingTx(const CTxIn& vin, CMutableTransaction&);
 
     /// Add an entry
-    bool Add(const CMasternode& mn);
+    bool Add(CMasternode& mn);
 
     ///return all MN's
     std::vector<CMasternode> GetFullMasternodeMap();
@@ -124,8 +119,7 @@ public:
 
     void CountNetworks(int protocolVersion, int& ipv4, int& ipv6, int& onion);
 
-    bool DsegUpdate(CNode* pnode);
-    bool WinnersUpdate(CNode* node);
+    void DsegUpdate(CNode* pnode);
 
     /// Find an entry
     CMasternode* Find(const CScript& payee);

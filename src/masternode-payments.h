@@ -31,6 +31,33 @@ void ProcessMessageMasternodePayments(CNode* pfrom, std::string& strCommand, CDa
 bool IsBlockPayeeValid(const CBlock& block, int nBlockHeight);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue, CAmount nMinted);
+void FillBlockPayee(CMutableTransaction& txNew, CAmount nFees, bool fProofOfStake);
+
+void DumpMasternodePayments();
+
+/** Save Masternode Payment Data (mnpayments.dat)
+ */
+class CMasternodePaymentDB
+{
+private:
+    boost::filesystem::path pathDB;
+    std::string strMagicMessage;
+
+public:
+    enum ReadResult {
+        Ok,
+        FileError,
+        HashReadError,
+        IncorrectHash,
+        IncorrectMagicMessage,
+        IncorrectMagicNumber,
+        IncorrectFormat
+    };
+
+    CMasternodePaymentDB();
+    bool Write(const CMasternodePayments& objToSave);
+    ReadResult Read(CMasternodePayments& objToLoad, bool fDryRun = false);
+};
 
 class CMasternodePayee
 {
@@ -183,6 +210,7 @@ public:
         payeeLevel = payeeLevelIn;
     }
 
+
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
@@ -196,10 +224,10 @@ public:
 
     std::string ToString()
     {
-        std::string ret;
+        std::string ret = "";
         ret += vinMasternode.ToString();
         ret += ", " + boost::lexical_cast<std::string>(nBlockHeight);
-        ret += ", " + boost::lexical_cast<std::string>(payeeLevel) + ":" + payee.ToString();
+        ret += ", " + payee.ToString();
         ret += ", " + boost::lexical_cast<std::string>((int)vchSig.size());
         return ret;
     }
@@ -213,7 +241,7 @@ public:
 class CMasternodePayments
 {
 private:
-
+    int nSyncedFromPeer;
     int nLastBlockHeight;
 
 public:
@@ -223,12 +251,13 @@ public:
 
     CMasternodePayments()
     {
+        nSyncedFromPeer = 0;
         nLastBlockHeight = 0;
     }
 
     void Clear()
     {
-        LOCK2(cs_mapMasternodePayeeVotes, cs_mapMasternodeBlocks);
+        LOCK2(cs_mapMasternodeBlocks, cs_mapMasternodePayeeVotes);
         mapMasternodeBlocks.clear();
         mapMasternodePayeeVotes.clear();
         mapMasternodesLastVote.clear();
@@ -239,10 +268,11 @@ public:
 
     void Sync(CNode* node, int nCountNeeded);
     void CleanPaymentList();
+    int LastPayment(CMasternode& mn);
 
     bool GetBlockPayee(int nBlockHeight, unsigned mnlevel, CScript& payee);
     bool IsTransactionValid(const CTransaction& txNew, int nBlockHeight);
-    bool IsScheduled(CMasternode& mn, int nNotBlockHeight) const;
+    bool IsScheduled(CMasternode& mn, int nNotBlockHeight);
     bool CanVote(const COutPoint& outMasternode, int nBlockHeight, unsigned mnlevel);
 
     int GetMinMasternodePaymentsProto();

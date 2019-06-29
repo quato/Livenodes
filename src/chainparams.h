@@ -50,16 +50,10 @@ public:
     const uint256& HashGenesisBlock() const { return hashGenesisBlock; }
     const MessageStartChars& MessageStart() const { return pchMessageStart; }
     const std::vector<unsigned char>& AlertKey() const { return vAlertPubKey; }
-
-    // const std::vector<unsigned char>& LivenodesCoinDevKey() const { return vLivenodesCoinDevKey; }
-    // const std::vector<unsigned char>& LivenodesCoinFundKey() const { return vLivenodesCoinFundKey; }
-    // int GetDevFee() const { return nDevFee; }
-    // int GetFundFee() const { return nFundFee; }
-
     int GetDefaultPort() const { return nDefaultPort; }
     const uint256& ProofOfWorkLimit() const { return bnProofOfWorkLimit; }
+    int SubsidyHalvingInterval() const { return nSubsidyHalvingInterval; }
     const uint256& StartWork() const { return bnStartWork; }
-
     /** Used to check majorities for block version upgrade */
     int EnforceBlockUpgradeMajority() const { return nEnforceBlockUpgradeMajority; }
     int RejectBlockOutdatedMajority() const { return nRejectBlockOutdatedMajority; }
@@ -73,17 +67,19 @@ public:
     /** Make miner wait to have peers to avoid wasting work */
     bool MiningRequiresPeers() const { return fMiningRequiresPeers; }
     /** Headers first syncing is disabled */
-    bool HeadersFirstSyncingActive() const { return fHeadersFirstSyncingActive; }
+    bool HeadersFirstSyncingActive() const { return fHeadersFirstSyncingActive; };
     /** Default value for -checkmempool and -checkblockindex argument */
     bool DefaultConsistencyChecks() const { return fDefaultConsistencyChecks; }
+    /** Allow mining of a min-difficulty block */
+    bool AllowMinDifficultyBlocks() const { return fAllowMinDifficultyBlocks; }
     /** Skip proof-of-work check: allow mining of any difficulty block */
     bool SkipProofOfWorkCheck() const { return fSkipProofOfWorkCheck; }
     /** Make standard checks */
     bool RequireStandard() const { return fRequireStandard; }
+    int64_t TargetTimespan() const { return nTargetTimespan; }
     int64_t TargetSpacing() const { return nTargetSpacing; }
     int64_t TargetSpacingSlowLaunch() const { return nTargetSpacingSlowLaunch; }
-    /** Instamine Prevention, Zero reward to block **/
-    // int ANTI_INSTAMINE_TIME() const { return nAntiInstamineTime; }
+    int64_t Interval() const { return nTargetTimespan / nTargetSpacing; }
     int COINBASE_MATURITY() const { return nMaturity; }
     CAmount MaxMoneyOut() const { return nMaxMoneyOut; }
     /** The masternode count that we will allow the see-saw reward payments to be off by */
@@ -118,20 +114,17 @@ protected:
     MessageStartChars pchMessageStart;
     //! Raw pub key bytes for the broadcast alert signing key.
     std::vector<unsigned char> vAlertPubKey;
-    // std::vector<unsigned char> vLivenodesCoinDevKey;
-    // std::vector<unsigned char> vLivenodesCoinFundKey;
-    // int nDevFee;
-    // int nFundFee;
     int nDefaultPort;
     uint256 bnProofOfWorkLimit;
     uint256 bnStartWork;
     int nMaxReorganizationDepth;
+    int nSubsidyHalvingInterval;
     int nEnforceBlockUpgradeMajority;
     int nRejectBlockOutdatedMajority;
     int nToCheckBlockUpgradeMajority;
+    int64_t nTargetTimespan;
     int64_t nTargetSpacing;
     int64_t nTargetSpacingSlowLaunch;
-    // int nAntiInstamineTime;
     int nLastPOWBlock;
     int nStartMasternodePaymentsBlock;
     int nMasternodeCountDrift;
@@ -147,6 +140,7 @@ protected:
     std::vector<CAddress> vFixedSeeds;
     bool fRequireRPCPassword;
     bool fMiningRequiresPeers;
+    bool fAllowMinDifficultyBlocks;
     bool fDefaultConsistencyChecks;
     bool fRequireStandard;
     bool fMineBlocksOnDemand;
@@ -169,10 +163,12 @@ class CModifiableParams
 {
 public:
     //! Published setters to allow changing values in unit test cases
+    virtual void setSubsidyHalvingInterval(int anSubsidyHalvingInterval) = 0;
     virtual void setEnforceBlockUpgradeMajority(int anEnforceBlockUpgradeMajority) = 0;
     virtual void setRejectBlockOutdatedMajority(int anRejectBlockOutdatedMajority) = 0;
     virtual void setToCheckBlockUpgradeMajority(int anToCheckBlockUpgradeMajority) = 0;
     virtual void setDefaultConsistencyChecks(bool aDefaultConsistencyChecks) = 0;
+    virtual void setAllowMinDifficultyBlocks(bool aAllowMinDifficultyBlocks) = 0;
     virtual void setSkipProofOfWorkCheck(bool aSkipProofOfWorkCheck) = 0;
 };
 

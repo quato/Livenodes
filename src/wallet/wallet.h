@@ -41,6 +41,7 @@ extern CFeeRate payTxFee;
 extern CAmount maxTxFee;
 extern unsigned int nTxConfirmTarget;
 extern bool bSpendZeroConfChange;
+extern bool bdisableSystemnotifications;
 extern bool fSendFreeTransactions;
 extern bool fPayAtLeastCustomFee;
 
@@ -64,9 +65,12 @@ class CWalletTx;
 
 /** (client) version numbers for particular wallet features */
 enum WalletFeature {
-    FEATURE_BASE = 1000000, // the earliest version new wallets supports
+    FEATURE_BASE = 10500, // the earliest version new wallets supports (only useful for getinfo's clientversion output)
 
-    FEATURE_LATEST = 1000000
+    FEATURE_WALLETCRYPT = 40000, // wallet encryption
+    FEATURE_COMPRPUBKEY = 60000, // compressed public keys
+
+    FEATURE_LATEST = 61000
 };
 
 enum AvailableCoinsType {
@@ -170,6 +174,7 @@ public:
     int CountInputsWithAmount(CAmount nInputAmount);
 
     bool SelectCoinsCollateral(std::vector<CTxIn>& setCoinsRet, CAmount& nValueRet) const;
+    string GetUniqueWalletBackupName() const;
 
     /*
      * Main wallet lock.
@@ -242,10 +247,10 @@ public:
         fWalletUnlockAnonymizeOnly = false;
 
         // Stake Settings
-        nHashDrift = 45;
+        nHashDrift = 180;
         nStakeSplitThreshold = 500;
         nHashInterval = 22;
-        nStakeSetUpdateTime = 300; // 5 minutes
+        nStakeSetUpdateTime = 300;
 
         //MultiSend
         vMultiSend.clear();
@@ -364,6 +369,7 @@ public:
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
     void GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const;
+    unsigned int ComputeTimeSmart(const CWalletTx& wtx) const;
 
     /**
      * Increment the next transaction order id
@@ -373,6 +379,7 @@ public:
 
     typedef std::pair<CWalletTx*, CAccountingEntry*> TxPair;
     typedef std::multimap<int64_t, TxPair> TxItems;
+    TxItems wtxOrdered;
 
     /**
      * Get the wallet's activity log
@@ -400,6 +407,7 @@ public:
     CAmount GetWatchOnlyBalance() const;
     CAmount GetUnconfirmedWatchOnlyBalance() const;
     CAmount GetImmatureWatchOnlyBalance() const;
+    bool CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl* coinControl);
     bool CreateTransaction(const std::vector<std::pair<CScript, CAmount> >& vecSend,
         CWalletTx& wtxNew,
         CReserveKey& reservekey,

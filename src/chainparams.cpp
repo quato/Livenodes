@@ -55,33 +55,28 @@ static void convertSeed6(std::vector<CAddress>& vSeedsOut, const SeedSpec6* data
 //    timestamp before)
 // + Contains no strange transactions
 static Checkpoints::MapCheckpoints mapCheckpoints =
-    boost::assign::map_list_of(0, uint256("000005e5c00c68a4216e7aa53b2896177590cba3e98030b25434d3fc0d244267"))
-    (27685, uint256("6780ee7c3fb0accb36697ad4dbad7570b55a6784b249c6f4a54a67d169f7fb9b"));
+    boost::assign::map_list_of(0,      uint256("000005e5c00c68a4216e7aa53b2896177590cba3e98030b25434d3fc0d244267"))
+                              (50000,  uint256("147cce53d47837619ef0c5298a67e0f2424159d651827449747dc07369f45c44"))
+                              (100000, uint256("e4cef986a32e52fc79058f4cf15443aa6623a94011ceb5c54c62cb53254c02b0"))
+                              (110000, uint256("fb427506f7134f12a5c4c61727833760b384a200c922538cd9746ac5272d6267"))
+                              (120000, uint256("e43e9fd5b0f7f47a9ce0b3f71734622c834044e46dbdb01a2b97724f7c6d146a"))
+                              (130000, uint256("d60c565b62de92127a8f8c1bb7e15460607a15339835773b2eb25a77b6894fbf"))
+                              (140000, uint256("b61b3f4eba44c3d2f062dfb1acbd8b630313833ec69066f4bc3c709d502cb167"))
+                              (150000, uint256("8d9bcdf739d378c1b0b1752757fdbd42c8f3b04175d8498f53cc5ae58b54b69a"))
+                              (160000, uint256("4ccdea61493e17bde0835f877b917af1bed68005392858c25f936d601f5470c8"))
+                              (163000, uint256("c064a2cae5c32a6613fdaea796f444f97ac821008db782adaa60caef9a25adb8"))
+                              (163475, uint256("57520f8abb4c394d7935ee133418c6415e5726f701f501d73a36c8b162568d90"));
 
 static const Checkpoints::CCheckpointData data = {
     &mapCheckpoints,
-    1552755963, // * UNIX timestamp of last checkpoint block
-    26487,          // * total number of transactions between genesis and last checkpoint
-                //   (the tx=... number in the SetBestChain debug.log lines)
-    1440        // * estimated number of transactions per day after checkpoint
+    1552755963,
+    26487,
+    1440
 };
 
-static Checkpoints::MapCheckpoints mapCheckpointsTestnet =
-    boost::assign::map_list_of(0, uint256("0"));
-static const Checkpoints::CCheckpointData dataTestnet = {
-    &mapCheckpointsTestnet,
-    1534859399,
-    0,
-    250};
+static Checkpoints::MapCheckpoints mapCheckpointsTestnet = {};
 
-static Checkpoints::MapCheckpoints mapCheckpointsRegtest =
-    boost::assign::map_list_of(0, uint256("0"));
-static const Checkpoints::CCheckpointData dataRegtest = {
-    &mapCheckpointsRegtest,
-    1534859399,
-    0,
-    100};
-
+static Checkpoints::MapCheckpoints mapCheckpointsRegtest = {};
 
 class CMainParams : public CChainParams
 {
@@ -101,7 +96,7 @@ public:
         pchMessageStart[3] = 0xb8;
         vAlertPubKey = ParseHex("02b35fd8c90c9b0345062d767c632ebe88665e43da89910d8439b6d5ac5074ce9a");
 
-        nDefaultPort = 30555;
+        nDefaultPort = 40555;
         bnProofOfWorkLimit = ~uint256(0) >> 20;
         bnStartWork = ~uint256(0) >> 24;
 
@@ -110,8 +105,8 @@ public:
         nRejectBlockOutdatedMajority = 950;
         nToCheckBlockUpgradeMajority = 1000;
         nMinerThreads = 0;
-        nTargetSpacing = 1 * 60;  // LivenodesCoin: 1 minute after 6000
-        nTargetSpacingSlowLaunch = 5 * 60; // before block 500
+        nTargetSpacing = 1 * 60;
+        nTargetSpacingSlowLaunch = 5 * 60;
         nMaturity = 149;
         nMasternodeCountDrift = 3;
         nMaxMoneyOut = 11000000 * COIN;
@@ -148,52 +143,17 @@ public:
         genesis.nNonce = 677809;
 
         hashGenesisBlock = genesis.GetHash();
-
-        /*
-        printf("coin genesis.nTime = %u \n", genesis.nTime);
-        printf("coin genesis.nNonce = %u \n", genesis.nNonce);
-        printf("coin genesis.GetHash = %s\n", hashGenesisBlock.ToString().c_str());
-        printf("coin Gensis Hash Merkle: %s\n\n", genesis.hashMerkleRoot.ToString().c_str());
-
-        uint256 hashTarget = uint256().SetCompact(genesis.nBits);
-        uint256 thash;
-
-        while(true)
-        {
-            //thash = scrypt_blockhash(BEGIN(genesis.nVersion));
-            thash = Hash9(BEGIN(genesis.nVersion), END(genesis.nNonce));
-            if (thash <= hashTarget)
-                break;
-            if ((genesis.nNonce & 0xFFF) == 0)
-            {
-                printf("nonce %08X: hash = %s (target = %s)\n", genesis.nNonce, thash.ToString().c_str(), hashTarget.ToString().c_str());
-            }
-            ++genesis.nNonce;
-            if (genesis.nNonce == 0)
-            {
-                printf("NONCE WRAPPED, incrementing time\n");
-                ++genesis.nTime;
-            }
-        }
-
-        printf("genesis.nTime = %u \n", genesis.nTime);
-        printf("genesis.nNonce = %u \n", genesis.nNonce);
-        printf("genesis.GetHash = %s\n", genesis.GetHash().ToString().c_str());
-        printf("Gensis Hash Merkle: %s\n", genesis.hashMerkleRoot.ToString().c_str());
-        assert(false);
-        */
-
         assert(hashGenesisBlock == uint256("000005e5c00c68a4216e7aa53b2896177590cba3e98030b25434d3fc0d244267"));
         assert(genesis.hashMerkleRoot == uint256("50ef9e7c0f8ecd7aeffe97edd82036db80e094982ae5ea504d82fe883a22e904"));
 
-        vSeeds.push_back(CDNSSeedData("seed1.livenodes.online", "seed1.livenodes.online"));         // Primary DNS Seeder
-        vSeeds.push_back(CDNSSeedData("seed2.livenodes.online", "seed2.livenodes.online"));         // Primary DNS Seeder
-        vSeeds.push_back(CDNSSeedData("explorer.livenodes.online", "explorer.livenodes.online"));   // explorer DNS Seeder
+//        vSeeds.push_back(CDNSSeedData("seed1.livenodes.online", "seed1.livenodes.online"));         // Primary DNS Seeder
+//        vSeeds.push_back(CDNSSeedData("seed2.livenodes.online", "seed2.livenodes.online"));         // Primary DNS Seeder
+//        vSeeds.push_back(CDNSSeedData("explorer.livenodes.online", "explorer.livenodes.online"));   // explorer DNS Seeder
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 48); // L
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 64); // S or T
         base58Prefixes[SECRET_KEY] = std::vector<unsigned char>(1, 53); // N
-        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x02)(0x2D)(0x25)(0x33).convert_to_container<std::vector<unsigned char> >(); // 2 45 37 51
+        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x02)(0x2D)(0x25)(0x33).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x02)(0x21)(0x31)(0x2B).convert_to_container<std::vector<unsigned char> >();
         // BIP44 coin type is from https://github.com/satoshilabs/slips/blob/master/slip-0044.md 9984
         base58Prefixes[EXT_COIN_TYPE] = boost::assign::list_of(0x80)(0x00)(0x27)(0x00).convert_to_container<std::vector<unsigned char> >();
@@ -202,6 +162,7 @@ public:
 
         fRequireRPCPassword = true;
         fMiningRequiresPeers = true;
+        fAllowMinDifficultyBlocks = false;
         fDefaultConsistencyChecks = true;
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
@@ -293,7 +254,6 @@ public:
     }
     const Checkpoints::CCheckpointData& Checkpoints() const
     {
-        return dataTestnet;
     }
 };
 static CTestNetParams testNetParams;
@@ -313,9 +273,7 @@ public:
         pchMessageStart[1] = 0xcf;
         pchMessageStart[2] = 0x7e;
         pchMessageStart[3] = 0xac;
-
         bnStartWork = ~uint256(0) >> 20;
-
         nEnforceBlockUpgradeMajority = 750;
         nRejectBlockOutdatedMajority = 950;
         nToCheckBlockUpgradeMajority = 1000;
@@ -328,7 +286,6 @@ public:
 
         hashGenesisBlock = genesis.GetHash();
         nDefaultPort = 51476;
-
         //assert(hashGenesisBlock == uint256("300552a9db8b2921c3c07e5bbf8694df5099db579742e243daeaf5008b1e74de"));
 
         vFixedSeeds.clear(); //! Testnet mode doesn't have any fixed seeds.
@@ -336,6 +293,7 @@ public:
 
         fRequireRPCPassword = false;
         fMiningRequiresPeers = false;
+        fAllowMinDifficultyBlocks = true;
         fDefaultConsistencyChecks = true;
         fRequireStandard = false;
         fMineBlocksOnDemand = true;
@@ -343,7 +301,6 @@ public:
     }
     const Checkpoints::CCheckpointData& Checkpoints() const
     {
-        return dataRegtest;
     }
 };
 static CRegTestParams regTestParams;
@@ -365,9 +322,8 @@ public:
         fRequireRPCPassword = false;
         fMiningRequiresPeers = false;
         fDefaultConsistencyChecks = true;
+        fAllowMinDifficultyBlocks = false;
         fMineBlocksOnDemand = true;
-
-
     }
 
     const Checkpoints::CCheckpointData& Checkpoints() const
@@ -377,10 +333,12 @@ public:
     }
 
     //! Published setters to allow changing values in unit test cases
+    virtual void setSubsidyHalvingInterval(int anSubsidyHalvingInterval) { nSubsidyHalvingInterval = anSubsidyHalvingInterval; }
     virtual void setEnforceBlockUpgradeMajority(int anEnforceBlockUpgradeMajority) { nEnforceBlockUpgradeMajority = anEnforceBlockUpgradeMajority; }
     virtual void setRejectBlockOutdatedMajority(int anRejectBlockOutdatedMajority) { nRejectBlockOutdatedMajority = anRejectBlockOutdatedMajority; }
     virtual void setToCheckBlockUpgradeMajority(int anToCheckBlockUpgradeMajority) { nToCheckBlockUpgradeMajority = anToCheckBlockUpgradeMajority; }
     virtual void setDefaultConsistencyChecks(bool afDefaultConsistencyChecks) { fDefaultConsistencyChecks = afDefaultConsistencyChecks; }
+    virtual void setAllowMinDifficultyBlocks(bool afAllowMinDifficultyBlocks) { fAllowMinDifficultyBlocks = afAllowMinDifficultyBlocks; }
     virtual void setSkipProofOfWorkCheck(bool afSkipProofOfWorkCheck) { fSkipProofOfWorkCheck = afSkipProofOfWorkCheck; }
 };
 static CUnitTestParams unitTestParams;

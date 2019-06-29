@@ -12,104 +12,17 @@
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
 #include "masternodeman.h"
-#include "rpcserver.h"
+#include "rpc/server.h"
 #include "utilmoneystr.h"
-
-#include <univalue.h>
 
 #include <boost/tokenizer.hpp>
 #include <fstream>
-
-namespace {
 
 void ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
         return !std::isspace(ch);
     }));
 }
-
-} // noname namespace
-
-void SendMoney(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew, AvailableCoinsType coin_type = ALL_COINS)
-{
-    // Check amount
-    if (nValue <= 0)
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount");
-
-    if (nValue > pwalletMain->GetBalance())
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
-
-    string strError;
-    if (pwalletMain->IsLocked()) {
-        strError = "Error: Wallet locked, unable to create transaction!";
-        LogPrintf("SendMoney() : %s", strError);
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
-
-    // Parse LivenodesCoin address
-    CScript scriptPubKey = GetScriptForDestination(address);
-
-    // Create and send the transaction
-    CReserveKey reservekey(pwalletMain);
-    CAmount nFeeRequired;
-    if (!pwalletMain->CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired, strError, NULL, coin_type)) {
-        if (nValue + nFeeRequired > pwalletMain->GetBalance())
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!", FormatMoney(nFeeRequired));
-        LogPrintf("SendMoney() : %s\n", strError);
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
-    if (!pwalletMain->CommitTransaction(wtxNew, reservekey))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
-}
-
-UniValue obfuscation(const UniValue& params, bool fHelp)
-{
-    if (fHelp || params.size() == 0)
-        throw runtime_error(
-            "obfuscation <livenodesaddress> <amount>\n"
-            "livenodesaddress, reset, or auto (AutoDenominate)"
-            "<amount> is a real and will be rounded to the next 0.1" +
-            HelpRequiringPassphrase());
-
-    if (pwalletMain->IsLocked())
-        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
-
-    if (params[0].get_str() == "auto") {
-        if (fMasterNode)
-            return "ObfuScation is not supported from masternodes";
-
-        return "DoAutomaticDenominating " + (obfuScationPool.DoAutomaticDenominating() ? "successful" : ("failed: " + obfuScationPool.GetStatus()));
-    }
-
-    if (params[0].get_str() == "reset") {
-        obfuScationPool.Reset();
-        return "successfully reset obfuscation";
-    }
-
-    if (params.size() != 2)
-        throw runtime_error(
-            "obfuscation <livenodesaddress> <amount>\n"
-            "livenodesaddress, denominate, or auto (AutoDenominate)"
-            "<amount> is a real and will be rounded to the next 0.1" +
-            HelpRequiringPassphrase());
-
-    CBitcoinAddress address(params[0].get_str());
-    if (!address.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid LivenodesCoin address");
-
-    // Amount
-    CAmount nAmount = AmountFromValue(params[1]);
-
-    // Wallet comments
-    CWalletTx wtx;
-    //    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx, ONLY_DENOMINATED);
-    SendMoney(address.Get(), nAmount, wtx, ONLY_DENOMINATED);
-    //    if (strError != "")
-    //        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-
-    return wtx.GetHash().GetHex();
-}
-
 
 UniValue getpoolinfo(const UniValue& params, bool fHelp)
 {
@@ -138,147 +51,6 @@ UniValue getpoolinfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("entries", obfuScationPool.GetEntriesCount()));
     obj.push_back(Pair("entries_accepted", obfuScationPool.GetCountEntriesAccepted()));
     return obj;
-}
-
-// This command is retained for backwards compatibility, but is depreciated.
-// Future removal of this command is planned to keep things clean.
-UniValue masternode(const UniValue& params, bool fHelp)
-{
-    string strCommand;
-    if (params.size() >= 1)
-        strCommand = params[0].get_str();
-
-    if (fHelp ||
-        (strCommand != "start" && strCommand != "start-alias" && strCommand != "start-many" && strCommand != "start-all" && strCommand != "start-missing" &&
-            strCommand != "start-disabled" && strCommand != "list" && strCommand != "list-conf" && strCommand != "count" && strCommand != "enforce" &&
-            strCommand != "debug" && strCommand != "current" && strCommand != "winners" && strCommand != "genkey" && strCommand != "connect" &&
-            strCommand != "outputs" && strCommand != "status" && strCommand != "calcscore"))
-        throw runtime_error(
-            "masternode \"command\"...\n"
-            "\nSet of commands to execute masternode related actions\n"
-            "This command is depreciated, please see individual command documentation for future reference\n\n"
-
-            "\nArguments:\n"
-            "1. \"command\"        (string or set of strings, required) The command to execute\n"
-
-            "\nAvailable commands:\n"
-            "  count        - Print count information of all known masternodes\n"
-            "  current      - Print info on current masternode winner\n"
-            "  debug        - Print masternode status\n"
-            "  genkey       - Generate new masternodeprivkey\n"
-            "  outputs      - Print masternode compatible outputs\n"
-            "  start        - Start masternode configured in livenodes.conf\n"
-            "  start-alias  - Start single masternode by assigned alias configured in masternode.conf\n"
-            "  start-<mode> - Start masternodes configured in masternode.conf (<mode>: 'all', 'missing', 'disabled')\n"
-            "  status       - Print masternode status information\n"
-            "  list         - Print list of all known masternodes (see masternodelist for more info)\n"
-            "  list-conf    - Print masternode.conf in JSON format\n"
-            "  winners      - Print list of masternode winners\n");
-
-    if (strCommand == "list") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return listmasternodes(newParams, fHelp);
-    }
-
-    if (strCommand == "connect") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return masternodeconnect(newParams, fHelp);
-    }
-
-    if (strCommand == "count") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return getmasternodecount(newParams, fHelp);
-    }
-
-    if (strCommand == "current") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return masternodecurrent(newParams, fHelp);
-    }
-
-    if (strCommand == "debug") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return masternodedebug(newParams, fHelp);
-    }
-
-    if (strCommand == "start" || strCommand == "start-alias" || strCommand == "start-many" || strCommand == "start-all" || strCommand == "start-missing" || strCommand == "start-disabled") {
-        return startmasternode(params, fHelp);
-    }
-
-    if (strCommand == "genkey") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return createmasternodekey(newParams, fHelp);
-    }
-
-    if (strCommand == "list-conf") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return listmasternodeconf(newParams, fHelp);
-    }
-
-    if (strCommand == "outputs") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return getmasternodeoutputs(newParams, fHelp);
-    }
-
-    if (strCommand == "status") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return getmasternodestatus(newParams, fHelp);
-    }
-
-    if (strCommand == "winners") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return getmasternodewinners(newParams, fHelp);
-    }
-
-    if (strCommand == "calcscore") {
-        UniValue newParams(UniValue::VARR);
-        // forward params but skip command
-        for (unsigned int i = 1; i < params.size(); i++) {
-            newParams.push_back(params[i]);
-        }
-        return getmasternodescores(newParams, fHelp);
-    }
-
-    return NullUniValue;
 }
 
 UniValue listmasternodes(const UniValue& params, bool fHelp)
@@ -323,7 +95,7 @@ UniValue listmasternodes(const UniValue& params, bool fHelp)
         nHeight = pindex->nHeight;
     }
     std::vector<pair<int, CMasternode> > vMasternodeRanks = mnodeman.GetMasternodeRanks(nHeight);
-    BOOST_FOREACH (PAIRTYPE(int, CMasternode) & s, vMasternodeRanks) {
+    for (PAIRTYPE(int, CMasternode) & s : vMasternodeRanks) {
         UniValue obj(UniValue::VOBJ);
         std::string strVin = s.second.vin.prevout.ToStringShort();
         std::string strTxHash = s.second.vin.prevout.hash.ToString();
@@ -343,7 +115,7 @@ UniValue listmasternodes(const UniValue& params, bool fHelp)
             CNetAddr node = CNetAddr(strHost, false);
             std::string strNetwork = GetNetworkName(node.GetNetwork());
 
-            obj.push_back(Pair("level", mn->Level()));
+            // obj.push_back(Pair("level", mn->Level()));
             obj.push_back(Pair("rank", (strStatus == "ENABLED" ? s.first : 0)));
             obj.push_back(Pair("network", strNetwork));
             obj.push_back(Pair("txhash", strTxHash));
@@ -449,22 +221,22 @@ UniValue getmasternodecount (const UniValue& params, bool fHelp)
 
         UniValue total_item{UniValue::VOBJ};
 
-        total_item.push_back(Pair("level", l));
+        total_item.push_back(Pair("level", (int64_t)l));
         total_item.push_back(Pair("count", mnodeman.size(l)));
 
         total.push_back(total_item);
 
         UniValue stable_item{UniValue::VOBJ};
 
-        stable_item.push_back(Pair("level", l));
+        stable_item.push_back(Pair("level", (int64_t)l));
         stable_item.push_back(Pair("count", mnodeman.stable_size(l)));
 
         stable.push_back(stable_item);
 
         UniValue enabled_item{UniValue::VOBJ};
 
-        enabled_item.push_back(Pair("level", l));
-        enabled_item.push_back(Pair("count", mnodeman.CountEnabled(l)));
+        enabled_item.push_back(Pair("level", (int64_t)l));
+        enabled_item.push_back(Pair("count", (int64_t)mnodeman.CountEnabled(l)));
 
         enabled.push_back(enabled_item);
 
@@ -475,15 +247,15 @@ UniValue getmasternodecount (const UniValue& params, bool fHelp)
         if(chain_tip)
             mnodeman.GetNextMasternodeInQueueForPayment(chain_tip->nHeight, l, true, inqueue_count);
 
-        inqueue_item.push_back(Pair("level", l));
-        inqueue_item.push_back(Pair("count", inqueue_count));
+        inqueue_item.push_back(Pair("level", (int64_t)l));
+        inqueue_item.push_back(Pair("count", (int64_t)inqueue_count));
 
         inqueue.push_back(inqueue_item);
 
         UniValue obfcomat_item{UniValue::VOBJ};
 
-        obfcomat_item.push_back(Pair("level", l));
-        obfcomat_item.push_back(Pair("count", mnodeman.CountEnabled(l, ActiveProtocol())));
+        obfcomat_item.push_back(Pair("level", (int64_t)l));
+        obfcomat_item.push_back(Pair("count", (int64_t)mnodeman.CountEnabled(l, ActiveProtocol())));
 
         obfcompat.push_back(obfcomat_item);
 
@@ -551,7 +323,7 @@ UniValue masternodedebug (const UniValue& params, bool fHelp)
         return activeMasternode.GetStatus();
 
     CTxIn vin = CTxIn();
-    CPubKey pubkey = CScript();
+    CPubKey pubkey;
     CKey key;
     if (!activeMasternode.GetMasterNodeVin(vin, pubkey, key))
         throw runtime_error("Missing masternode input, please look at the documentation for instructions on masternode creation\n");
@@ -618,7 +390,6 @@ UniValue startmasternode (const UniValue& params, bool fHelp)
             if (fLock)
                 pwalletMain->Lock();
         }
-
         return activeMasternode.GetStatus();
     }
 
@@ -640,7 +411,7 @@ UniValue startmasternode (const UniValue& params, bool fHelp)
 
         UniValue resultsObj(UniValue::VARR);
 
-        BOOST_FOREACH (CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+        for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
             std::string errorMessage;
             int nIndex;
             if(!mne.castOutputIndex(nIndex))
@@ -775,7 +546,7 @@ UniValue getmasternodeoutputs (const UniValue& params, bool fHelp)
     vector<COutput> possibleCoins = activeMasternode.SelectCoinsMasternode();
 
     UniValue ret(UniValue::VARR);
-    BOOST_FOREACH (COutput& out, possibleCoins) {
+    for (COutput& out : possibleCoins) {
         UniValue obj(UniValue::VOBJ);
         obj.push_back(Pair("txhash", out.tx->GetHash().ToString()));
         obj.push_back(Pair("outputidx", out.i));
@@ -820,7 +591,7 @@ UniValue listmasternodeconf (const UniValue& params, bool fHelp)
 
     UniValue ret(UniValue::VARR);
 
-    BOOST_FOREACH (CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+    for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
         int nIndex;
         if(!mne.castOutputIndex(nIndex))
             continue;
@@ -1019,7 +790,7 @@ UniValue getmasternodescores (const UniValue& params, bool fHelp)
     if (params.size() == 1) {
         try {
             nLast = std::stoi(params[0].get_str());
-        } catch (const boost::bad_lexical_cast &) {
+        } catch (const std::invalid_argument&) {
             throw runtime_error("Exception on param 2");
         }
     }
@@ -1029,7 +800,7 @@ UniValue getmasternodescores (const UniValue& params, bool fHelp)
     for (int nHeight = chainActive.Tip()->nHeight - nLast; nHeight < chainActive.Tip()->nHeight + 20; nHeight++) {
         uint256 nHigh = 0;
         CMasternode* pBestMasternode = NULL;
-        BOOST_FOREACH (CMasternode& mn, vMasternodes) {
+        for (CMasternode& mn : vMasternodes) {
             uint256 n = mn.CalculateScore(1, nHeight - 100);
             if (n > nHigh) {
                 nHigh = n;

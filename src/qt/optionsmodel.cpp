@@ -22,8 +22,8 @@
 
 #ifdef ENABLE_WALLET
 #include "masternodeconfig.h"
-#include "wallet.h"
-#include "walletdb.h"
+#include "wallet/wallet.h"
+#include "wallet/walletdb.h"
 #endif
 
 #include <QNetworkProxy>
@@ -72,15 +72,6 @@ void OptionsModel::Init()
     if (!settings.contains("fCoinControlFeatures"))
         settings.setValue("fCoinControlFeatures", false);
     fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
-
-    if (!settings.contains("nObfuscationRounds"))
-        settings.setValue("nObfuscationRounds", 2);
-
-    if (!settings.contains("nAnonymizePhcAmount"))
-        settings.setValue("nAnonymizePhcAmount", 1000);
-
-    nObfuscationRounds = settings.value("nObfuscationRounds").toLongLong();
-    nAnonymizePhcAmount = settings.value("nAnonymizePhcAmount").toLongLong();
 
     if (!settings.contains("fShowMasternodesTab"))
         settings.setValue("fShowMasternodesTab", masternodeConfig.getCount());
@@ -226,10 +217,6 @@ QVariant OptionsModel::data(const QModelIndex& index, int role) const
             return settings.value("nDatabaseCache");
         case ThreadsScriptVerif:
             return settings.value("nThreadsScriptVerif");
-        case ObfuscationRounds:
-            return QVariant(nObfuscationRounds);
-        case AnonymizePhcAmount:
-            return QVariant(nAnonymizePhcAmount);
         case Listen:
             return settings.value("fListen");
         default:
@@ -332,16 +319,6 @@ bool OptionsModel::setData(const QModelIndex& index, const QVariant& value, int 
                 settings.setValue("language", value);
                 setRestartRequired(true);
             }
-            break;
-        case ObfuscationRounds:
-            nObfuscationRounds = value.toInt();
-            settings.setValue("nObfuscationRounds", nObfuscationRounds);
-            emit obfuscationRoundsChanged(nObfuscationRounds);
-            break;
-        case AnonymizePhcAmount:
-            nAnonymizePhcAmount = value.toInt();
-            settings.setValue("nAnonymizePhcAmount", nAnonymizePhcAmount);
-            emit anonymizePhcAmountChanged(nAnonymizePhcAmount);
             break;
         case CoinControlFeatures:
             fCoinControlFeatures = value.toBool();

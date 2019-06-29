@@ -26,6 +26,8 @@ using namespace boost;
 /*
     Don't ever reuse these IDs for other sporks
     - This would result in old clients getting confused about which spork is for what
+
+    Sporks 11,12, and 16 to be removed with 1st zerocoin release
 */
 #define SPORK_START 10001
 #define SPORK_END 10008
@@ -57,10 +59,10 @@ extern std::map<uint256, CSporkMessage> mapSporks;
 extern std::map<int, CSporkMessage> mapSporksActive;
 extern CSporkManager sporkManager;
 
+void LoadSporksFromDB();
 void ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
 int64_t GetSporkValue(int nSporkID);
 bool IsSporkActive(int nSporkID);
-void ExecuteSpork(int nSporkID, int nValue);
 void ReprocessBlocks(int nBlocks);
 
 //

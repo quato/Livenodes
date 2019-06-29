@@ -1,12 +1,11 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
-// Copyright (c) 2015-2017 The PIVX developers
-// Copyright (c) 2018-2019 The Livenodes developers
+// Copyright (c) 2015-2019 The PIVX developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_SERIALIZE_H
-#define BITCOIN_SERIALIZE_H
+#ifndef PIVX_SERIALIZE_H
+#define PIVX_SERIALIZE_H
 
 #include <algorithm>
 #include <assert.h>
@@ -44,40 +43,38 @@ inline T* NCONST_PTR(const T* val)
     return const_cast<T*>(val);
 }
 
-/** 
- * Get begin pointer of vector (non-const version).
- * @note These functions avoid the undefined case of indexing into an empty
- * vector, as well as that of indexing after the end of the vector.
- */
+/////////////////////////////////////////////////////////////////
+//
+// Templates for serializing to anything that looks like a stream,
+// i.e. anything that supports .read(char*, size_t) and .write(char*, size_t)
+//
+
 template <class T, class TAl>
 inline T* begin_ptr(std::vector<T, TAl>& v)
 {
     return v.empty() ? NULL : &v[0];
 }
+
 /** Get begin pointer of vector (const version) */
 template <class T, class TAl>
 inline const T* begin_ptr(const std::vector<T, TAl>& v)
 {
     return v.empty() ? NULL : &v[0];
 }
+
 /** Get end pointer of vector (non-const version) */
 template <class T, class TAl>
 inline T* end_ptr(std::vector<T, TAl>& v)
 {
     return v.empty() ? NULL : (&v[0] + v.size());
 }
+
 /** Get end pointer of vector (const version) */
 template <class T, class TAl>
 inline const T* end_ptr(const std::vector<T, TAl>& v)
 {
     return v.empty() ? NULL : (&v[0] + v.size());
 }
-
-/////////////////////////////////////////////////////////////////
-//
-// Templates for serializing to anything that looks like a stream,
-// i.e. anything that supports .read(char*, size_t) and .write(char*, size_t)
-//
 
 enum {
     // primary actions
@@ -275,6 +272,8 @@ inline void Serialize(Stream& s, bool a, int, int = 0)
     char f = a;
     WRITEDATA(s, f);
 }
+
+
 template <typename Stream>
 inline void Unserialize(Stream& s, bool& a, int, int = 0)
 {
@@ -282,7 +281,6 @@ inline void Unserialize(Stream& s, bool& a, int, int = 0)
     READDATA(s, f);
     a = f;
 }
-
 
 /**
  * Compact Size
@@ -447,8 +445,8 @@ public:
     template <class T, class TAl>
     explicit CFlatData(std::vector<T, TAl>& v)
     {
-        pbegin = (char*)begin_ptr(v);
-        pend = (char*)end_ptr(v);
+        pbegin = (char*)v.data();
+        pend = (char*)(v.data() + v.size());
     }
     char* begin() { return pbegin; }
     const char* begin() const { return pbegin; }
@@ -910,6 +908,12 @@ public:
         return *this;
     }
 
+    /** Pretend _nSize bytes are written, without specifying them. */
+    void seek(size_t _nSize)
+    {
+        this->nSize += _nSize;
+    }
+
     template <typename T>
     CSizeComputer& operator<<(const T& obj)
     {
@@ -923,4 +927,4 @@ public:
     }
 };
 
-#endif // BITCOIN_SERIALIZE_H
+#endif // PIVX_SERIALIZE_H

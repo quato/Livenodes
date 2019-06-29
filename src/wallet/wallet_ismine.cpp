@@ -59,6 +59,7 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
     case TX_NONSTANDARD:
     case TX_NULL_DATA:
         break;
+    case TX_ZEROCOINMINT:
     case TX_PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();
         if(keystore.HaveKey(keyID))
@@ -74,7 +75,7 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
         CScript subscript;
         if(keystore.GetCScript(scriptID, subscript)) {
             isminetype ret = IsMine(keystore, subscript);
-            if (ret != ISMINE_NO)
+            if(ret != ISMINE_NO)
                 return ret;
         }
         break;
