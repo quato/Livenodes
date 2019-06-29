@@ -1715,12 +1715,14 @@ CAmount GetBlockValue(int nHeight)
       nSubsidy = 5 * COIN;
     } else if (nHeight > 90000 && nHeight <= 120000) {
       nSubsidy = 4 * COIN;
-    } else if (nHeight > 120000 && nHeight <= 150000) {
+    } else if (nHeight > 120000 && nHeight <= 153000) {
       nSubsidy = 3 * COIN;
-    } else if (nHeight > 150000 && nHeight <= 200000) {
+    } else if (nHeight > 153000 && nHeight <= 200000) {
+      nSubsidy = 4 * COIN;
+    } else if (nHeight > 200000 && nHeight <= 300000) {
+      nSubsidy = 3 * COIN;
+    } else if (nHeight > 300000) {
       nSubsidy = 2 * COIN;
-    } else {
-      nSubsidy = 1 * COIN;
     }
 
     // Check if we reached the coin max supply.
@@ -1743,12 +1745,16 @@ int64_t GetMasternodePayment(int nHeight, unsigned mnlevel, int64_t blockValue)
     switch(mnlevel)
     {
         case 1:
+            if (nHeight >= 153000)
+               return blockValue * 0.1;
             return blockValue * 0.15;
 
         case 2:
             return blockValue * 0.25;
 
         case 3:
+            if (nHeight >= 153000)
+               return blockValue * 0.6;
             return blockValue * 0.5;
     }
 
@@ -2188,9 +2194,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // See BIP30 and http://r6.ca/blog/20120206T005236Z.html for more information.
     // This logic is not necessary for memory pool transactions, as AcceptToMemoryPool
     // already refuses previously-known transaction ids entirely.
-    bool fEnforceBIP30 = !pindex->phashBlock; // Enforce on CreateNewBlock invocations which don't have a hash.
-
-    if (fEnforceBIP30) {
+    if (!pindex->phashBlock) {
         for(const CTransaction& tx : block.vtx) {
             const CCoins* coins = view.AccessCoins(tx.GetHash());
             if (coins && !coins->IsPruned())
@@ -2866,7 +2870,7 @@ bool ActivateBestChain(CValidationState& state, CBlock* pblock, bool fAlreadyChe
             uiInterface.NotifyBlockTip(hashNewTip);
         }
     } while (pindexMostWork != chainActive.Tip());
-    CheckBlockIndex();
+    // CheckBlockIndex();
 
     // Write changes periodically to disk, after relay.
     if (!FlushStateToDisk(state, FLUSH_STATE_PERIODIC)) {
@@ -3718,7 +3722,7 @@ bool ProcessNewBlock(CValidationState& state, CNode* pfrom, CBlock* pblock, CDis
         if (pindex && pfrom) {
             mapBlockSource[pindex->GetBlockHash()] = pfrom->GetId();
         }
-        CheckBlockIndex();
+        // CheckBlockIndex();
         if (!ret){
             // Check spamming
             if(pfrom && GetBoolArg("-blockspamfilter", DEFAULT_BLOCK_SPAM_FILTER)) {
@@ -5279,7 +5283,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             pfrom->PushMessage("getheaders", chainActive.GetLocator(pindexLast), uint256(0));
         }
 
-        CheckBlockIndex();
+        // CheckBlockIndex();
     }
 
     else if (strCommand == "block" && !fImporting && !fReindex) // Ignore blocks received while importing
@@ -5557,8 +5561,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
 int ActiveProtocol()
 {
-    if (IsSporkActive(SPORK_8_NEW_PROTOCOL_ENFORCEMENT)) return MIN_PEER_PROTO_VERSION_AFTER_ENFORCEMENT;
-
     return MIN_PEER_PROTO_VERSION_BEFORE_ENFORCEMENT;
 }
 
