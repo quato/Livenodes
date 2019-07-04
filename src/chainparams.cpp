@@ -69,9 +69,9 @@ static Checkpoints::MapCheckpoints mapCheckpoints =
 
 static const Checkpoints::CCheckpointData data = {
     &mapCheckpoints,
-    1552755963,
-    26487,
-    1440
+    1561056927,
+    348977,
+    1.5
 };
 
 static Checkpoints::MapCheckpoints mapCheckpointsTestnet = {};
@@ -146,9 +146,12 @@ public:
         assert(hashGenesisBlock == uint256("000005e5c00c68a4216e7aa53b2896177590cba3e98030b25434d3fc0d244267"));
         assert(genesis.hashMerkleRoot == uint256("50ef9e7c0f8ecd7aeffe97edd82036db80e094982ae5ea504d82fe883a22e904"));
 
-//        vSeeds.push_back(CDNSSeedData("seed1.livenodes.online", "seed1.livenodes.online"));         // Primary DNS Seeder
-//        vSeeds.push_back(CDNSSeedData("seed2.livenodes.online", "seed2.livenodes.online"));         // Primary DNS Seeder
-//        vSeeds.push_back(CDNSSeedData("explorer.livenodes.online", "explorer.livenodes.online"));   // explorer DNS Seeder
+        vSeeds.push_back(CDNSSeedData("seednode1.livenodes.online","seednode1.livenodes.online"));
+        vSeeds.push_back(CDNSSeedData("seednode2.livenodes.online","seednode2.livenodes.online"));
+        vSeeds.push_back(CDNSSeedData("seednode3.livenodes.online","seednode3.livenodes.online"));
+        vSeeds.push_back(CDNSSeedData("seednode4.livenodes.online","seednode4.livenodes.online"));
+        vSeeds.push_back(CDNSSeedData("seednode5.livenodes.online","seednode5.livenodes.online"));
+        vSeeds.push_back(CDNSSeedData("seednode6.livenodes.online","seednode6.livenodes.online"));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 48); // L
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 64); // S or T
@@ -163,7 +166,7 @@ public:
         fRequireRPCPassword = true;
         fMiningRequiresPeers = true;
         fAllowMinDifficultyBlocks = false;
-        fDefaultConsistencyChecks = true;
+        fDefaultConsistencyChecks = false;
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
         fSkipProofOfWorkCheck = false;

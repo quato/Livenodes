@@ -12,47 +12,40 @@
 #include "util.h"
 #include <boost/lexical_cast.hpp>
 
-// keep track of the scanning errors I've seen
-map<uint256, int> mapSeenMasternodeScanningErrors;
 // cache block hashes as we calculate them
 std::map<int64_t, uint256> mapCacheBlockHashes;
 
 //Get the last hash that matches the modulus given. Processed in reverse order
 bool GetBlockHash(uint256& hash, int nBlockHeight)
 {
-    if (chainActive.Tip() == NULL) return false;
+    auto active_tip = chainActive.Tip();
 
-    if (nBlockHeight == 0)
-        nBlockHeight = chainActive.Tip()->nHeight;
+    if(!active_tip)
+        return false;
 
-    if (mapCacheBlockHashes.count(nBlockHeight)) {
-        hash = mapCacheBlockHashes[nBlockHeight];
+    if(nBlockHeight <= 0)
+        nBlockHeight = active_tip->nHeight;
+
+    if(active_tip->nHeight < nBlockHeight)
+        return false;
+
+    const auto& cached_hash = mapCacheBlockHashes.find(nBlockHeight);
+
+    if(cached_hash != mapCacheBlockHashes.cend()) {
+        hash = cached_hash->second;
         return true;
     }
 
-    const CBlockIndex* BlockLastSolved = chainActive.Tip();
-    const CBlockIndex* BlockReading = chainActive.Tip();
+    for(auto BlockReading = active_tip; BlockReading; BlockReading = BlockReading->pprev) {
 
-    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || chainActive.Tip()->nHeight + 1 < nBlockHeight) return false;
+        if(BlockReading->nHeight != nBlockHeight)
+            continue;
 
-    int nBlocksAgo = 0;
-    if (nBlockHeight > 0) nBlocksAgo = (chainActive.Tip()->nHeight + 1) - nBlockHeight;
-    assert(nBlocksAgo >= 0);
+        auto ins_res = mapCacheBlockHashes.emplace(nBlockHeight, BlockReading->GetBlockHash());
 
-    int n = 0;
-    for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
-        if (n >= nBlocksAgo) {
-            hash = BlockReading->GetBlockHash();
-            mapCacheBlockHashes[nBlockHeight] = hash;
-            return true;
-        }
-        n++;
+        hash = ins_res.first->second;
 
-        if (BlockReading->pprev == NULL) {
-            assert(BlockReading);
-            break;
-        }
-        BlockReading = BlockReading->pprev;
+        return true;
     }
 
     return false;
