@@ -224,15 +224,14 @@ bool CMasternodeMan::Add(CMasternode& mn)
     if (!mn.IsEnabled())
         return false;
 
-    CMasternode* pmn = Find(mn.vin);
-    if (pmn == NULL) {
-        LogPrint("masternode", "CMasternodeMan: Adding new Masternode %s - %i now\n", mn.vin.prevout.hash.ToString(), size() + 1);
-        vMasternodes.push_back(mn);
-        return true;
-    }
+    if(Find(mn.vin))
+        return false;
 
-    return false;
+    LogPrint("masternode", "CMasternodeMan: Adding new Masternode %s - %i now\n", mn.vin.prevout.hash.ToString(), size() + 1);
+    vMasternodes.push_back(mn);
+    return true;
 }
+
 
 std::vector<CMasternode> CMasternodeMan::GetFullMasternodeMap()
 {
@@ -340,6 +339,25 @@ void CMasternodeMan::CheckAndRemove(bool forceExpiredRemoval)
     }
 
     // remove expired mapSeenMasternodeBroadcast
+    map<CNetAddr, int64_t>::iterator it5 = mAskedUsForWinnerMasternodeList.begin();
+    while (it5 != mAskedUsForWinnerMasternodeList.end()) {
+        if ((*it5).second < GetTime()) {
+            mAskedUsForWinnerMasternodeList.erase(it5++);
+        } else {
+            ++it5;
+        }
+    }
+
+    // check who we asked for the wineer Masternode list
+    it5 = mWeAskedForWinnerMasternodeList.begin();
+    while (it5 != mWeAskedForWinnerMasternodeList.end()) {
+        if ((*it5).second < GetTime()) {
+            mWeAskedForWinnerMasternodeList.erase(it5++);
+        } else {
+            ++it5;
+        }
+    }
+
     map<uint256, CMasternodeBroadcast>::iterator it3 = mapSeenMasternodeBroadcast.begin();
     while (it3 != mapSeenMasternodeBroadcast.end()) {
         if ((*it3).second.lastPing.sigTime < GetTime() - (MASTERNODE_REMOVAL_SECONDS * 2)) {
@@ -368,6 +386,8 @@ void CMasternodeMan::Clear()
     mAskedUsForMasternodeList.clear();
     mWeAskedForMasternodeList.clear();
     mWeAskedForMasternodeListEntry.clear();
+    mAskedUsForWinnerMasternodeList.clear();
+    mWeAskedForWinnerMasternodeList.clear();
     mapSeenMasternodeBroadcast.clear();
     mapSeenMasternodePing.clear();
     nDsqCount = 0;
@@ -490,7 +510,7 @@ void CMasternodeMan::CountNetworks(int protocolVersion, int& ipv4, int& ipv6, in
     }
 }
 
-void CMasternodeMan::DsegUpdate(CNode* pnode)
+bool CMasternodeMan::DsegUpdate(CNode* pnode)
 {
     LOCK(cs);
 
@@ -500,7 +520,7 @@ void CMasternodeMan::DsegUpdate(CNode* pnode)
             if (it != mWeAskedForMasternodeList.end()) {
                 if (GetTime() < (*it).second) {
                     LogPrint("masternode", "dseg - we already asked peer %i for the list; skipping...\n", pnode->GetId());
-                    return;
+                    return false;
                 }
             }
         }
@@ -509,6 +529,29 @@ void CMasternodeMan::DsegUpdate(CNode* pnode)
     pnode->PushMessage("dseg", CTxIn());
     int64_t askAgain = GetTime() + MASTERNODES_DSEG_SECONDS;
     mWeAskedForMasternodeList[pnode->addr] = askAgain;
+    return true;
+}
+
+bool CMasternodeMan::WinnersUpdate(CNode* node)
+{
+    LOCK(cs);
+
+    if (Params().NetworkID() == CBaseChainParams::MAIN) {
+        if (!(node->addr.IsRFC1918() || node->addr.IsLocal())) {
+            std::map<CNetAddr, int64_t>::iterator it = mWeAskedForWinnerMasternodeList.find(node->addr);
+            if (it != mWeAskedForWinnerMasternodeList.end()) {
+                if (GetTime() < (*it).second) {
+                    LogPrint("masternode", "mnget - we already asked peer %i for the winners list; skipping...\n", node->GetId());
+                    return false;
+                }
+            }
+        }
+    }
+
+    node->PushMessage("mnget", mnodeman.CountEnabled());
+    int64_t askAgain = GetTime() + MASTERNODES_DSEG_SECONDS;
+    mWeAskedForWinnerMasternodeList[node->addr] = askAgain;
+    return true;
 }
 
 CMasternode* CMasternodeMan::Find(const CScript& payee)

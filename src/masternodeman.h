@@ -66,6 +66,9 @@ private:
     // which Masternodes we've asked for
     std::map<COutPoint, int64_t> mWeAskedForMasternodeListEntry;
 
+    std::map<CNetAddr, int64_t> mAskedUsForWinnerMasternodeList;
+    // who we asked for the winning Masternode list and the last time
+    std::map<CNetAddr, int64_t> mWeAskedForWinnerMasternodeList;
 public:
     // Keep track of all broadcasts I've seen
     map<uint256, CMasternodeBroadcast> mapSeenMasternodeBroadcast;
@@ -85,6 +88,8 @@ public:
         READWRITE(mAskedUsForMasternodeList);
         READWRITE(mWeAskedForMasternodeList);
         READWRITE(mWeAskedForMasternodeListEntry);
+        READWRITE(mAskedUsForWinnerMasternodeList);
+        READWRITE(mWeAskedForWinnerMasternodeList);
         READWRITE(nDsqCount);
 
         READWRITE(mapSeenMasternodeBroadcast);
@@ -119,7 +124,8 @@ public:
 
     void CountNetworks(int protocolVersion, int& ipv4, int& ipv6, int& onion);
 
-    void DsegUpdate(CNode* pnode);
+    bool DsegUpdate(CNode* pnode);
+    bool WinnersUpdate(CNode* node);
 
     /// Find an entry
     CMasternode* Find(const CScript& payee);
