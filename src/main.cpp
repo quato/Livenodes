@@ -5425,32 +5425,30 @@ bool ProcessMessages(CNode* pfrom)
         // get next message
         CNetMessage& msg = *it;
 
-        //if (fDebug)
-        //    LogPrintf("ProcessMessages(message %u msgsz, %u bytes, complete:%s)\n",
-        //            msg.hdr.nMessageSize, msg.vRecv.size(),
-        //            msg.complete() ? "Y" : "N");
+        if (fDebug)
+            LogPrintf("ProcessMessages(message %u msgsz, %u bytes, complete:%s)\n",
+                    msg.hdr.nMessageSize, msg.vRecv.size(),
+                    msg.complete() ? "Y" : "N");
 
         // end, if an incomplete message is found
         if (!msg.complete())
             break;
 
+        /////////////////////////////////////////////////
+       	CMessageHeader& hdr = msg.hdr;
+       	string strCommand = hdr.GetCommand();
+       	if (fDebug) LogPrintf("\e[32m%s\e[0m\n", strCommand.c_str());
+        /////////////////////////////////////////////////
+
         // at this point, any failure means we can delete the current message
         it++;
 
-        // Scan for message start
-        if (memcmp(msg.hdr.pchMessageStart, Params().MessageStart(), MESSAGE_START_SIZE) != 0) {
-            LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()), pfrom->id);
-            fOk = false;
-            break;
-        }
-
         // Read header
-        CMessageHeader& hdr = msg.hdr;
         if (!hdr.IsValid()) {
             LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n", SanitizeString(hdr.GetCommand()), pfrom->id);
             continue;
         }
-        string strCommand = hdr.GetCommand();
+        strCommand = hdr.GetCommand();
 
         // Message size
         unsigned int nMessageSize = hdr.nMessageSize;
@@ -5468,6 +5466,17 @@ bool ProcessMessages(CNode* pfrom)
 
         // Process message
         bool fRet = false;
+        /////////////////////////////////////////////////
+        if (fDebug) {
+		char msgbuf[65536] = {0};
+		unsigned int msglen = vRecv.size();
+                if (msglen>65536) msglen = 65535;
+		memcpy(msgbuf, vRecv.str().c_str(), msglen);
+		for (unsigned int i = 0; i < msglen; i++)
+		  printf("%02hhx", msgbuf[i]);
+		printf("\n");
+        }
+        /////////////////////////////////////////////////
         try {
             fRet = ProcessMessage(pfrom, strCommand, vRecv, msg.nTime);
             boost::this_thread::interruption_point();

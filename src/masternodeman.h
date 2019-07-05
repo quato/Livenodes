@@ -102,7 +102,7 @@ public:
     static CValidationState GetInputCheckingTx(const CTxIn& vin, CMutableTransaction&);
 
     /// Add an entry
-    bool Add(CMasternode& mn);
+    bool Add(const CMasternode& mn);
 
     ///return all MN's
     std::vector<CMasternode> GetFullMasternodeMap();
