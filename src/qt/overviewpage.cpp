@@ -337,7 +337,7 @@ void OverviewPage::updatBlockChainInfo()
  if (masternodeSync.IsBlockchainSynced())
  {
 int CurrentBlock = (int)chainActive.Height();
-//int64_t netHashRate = chainActive.GetNetworkHashPS(24, CurrentBlock-1);
+int64_t nethash_mhs = chainActive.GetNetworkHashPS(24, CurrentBlock-1);
 int64_t BlockReward = GetBlockValue(chainActive.Height());
 double BlockRewardLivenodesCoin =  static_cast<double>(BlockReward/COIN);
 //int64_t LivenodesCoinSupply = chainActive.Tip()->nMoneySupply / COIN;
@@ -356,7 +356,6 @@ ui->label_CurrentBlock_value->setText(QString::number(CurrentBlock));
 //     }
 // ui->label_CurrentBitGun_value->setText(QString::number(BitGunLevel));
 
-#if 0
 if (nethash_mhs >= 1000000)
 {
     ui->label_Nethash->setText(tr("Nethash THs:"));
@@ -378,7 +377,6 @@ else
 
 ui->label_CurrentBlockReward_value->setText(QString::number(BlockRewardLivenodesCoin));
 //ui->label_LivenodesCoinSupply_value->setText(QString::number(LivenodesCoinSupply));
-#endif
 
   }
 }
