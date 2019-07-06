@@ -648,7 +648,7 @@ int CNetMessage::readHeader(const char* pch, unsigned int nBytes)
     return nCopy;
 }
 
-int CNetMessage::readData(const char* pch, unsigned int nBytes)
+int CNetMessage::readData(const char *pch, unsigned int nBytes)
 {
     unsigned int nRemaining = hdr.nMessageSize - nDataPos;
     unsigned int nCopy = std::min(nRemaining, nBytes);
@@ -658,11 +658,24 @@ int CNetMessage::readData(const char* pch, unsigned int nBytes)
         vRecv.resize(std::min(hdr.nMessageSize, nDataPos + nCopy + 256 * 1024));
     }
 
+    hasher.Write((const unsigned char*)pch, nCopy);
     memcpy(&vRecv[nDataPos], pch, nCopy);
     nDataPos += nCopy;
 
     return nCopy;
 }
+
+const uint256& CNetMessage::GetMessageHash() const
+{
+    assert(complete());
+    if (data_hash.IsNull())
+        hasher.Finalize(data_hash.begin());
+    return data_hash;
+}
+
+
+
+
 
 
 // requires LOCK(cs_vSend)
