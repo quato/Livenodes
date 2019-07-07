@@ -2821,7 +2821,9 @@ bool ActivateBestChain(CValidationState& state, CBlock* pblock, bool fAlreadyChe
             uiInterface.NotifyBlockTip(hashNewTip);
         }
     } while (pindexMostWork != chainActive.Tip());
-    // CheckBlockIndex();
+
+    if(!IsInitialBlockDownload())
+       CheckBlockIndex();
 
     // Write changes periodically to disk, after relay.
     if (!FlushStateToDisk(state, FLUSH_STATE_PERIODIC)) {
@@ -3610,8 +3612,11 @@ bool ProcessNewBlock(CValidationState& state, CNode* pfrom, CBlock* pblock, CDis
         bool ret = AcceptBlock (*pblock, state, &pindex, dbp, checked);
         if (pindex && pfrom) {
             mapBlockSource[pindex->GetBlockHash ()] = pfrom->GetId ();
-        }
-        // CheckBlockIndex ();
+	}
+
+	if(!IsInitialBlockDownload())
+		CheckBlockIndex();
+
         if (!ret) {
             // Check spamming
             if(pindex && pfrom && GetBoolArg("-blockspamfilter", DEFAULT_BLOCK_SPAM_FILTER)) {
@@ -4702,6 +4707,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         AddTimeData(pfrom->addr, nTime);
     }
 
+    else if (pfrom->nVersion == 0) {
+        // Must have a version message before anything else
+        Misbehaving(pfrom->GetId(), 1);
+        return false;
+    }
+
     else if (strCommand == "verack") {
         pfrom->SetRecvVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
 
@@ -4775,6 +4786,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
 
     else if (strCommand == "inv") {
+
         vector<CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
@@ -4785,19 +4797,16 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         LOCK(cs_main);
 
         std::vector<CInv> vToFetch;
-
         for (unsigned int nInv = 0; nInv < vInv.size(); nInv++) {
             const CInv& inv = vInv[nInv];
 
             boost::this_thread::interruption_point();
             pfrom->AddInventoryKnown(inv);
-
             bool fAlreadyHave = AlreadyHave(inv);
             LogPrint("net", "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom->id);
 
             if (!fAlreadyHave && !fImporting && !fReindex && inv.type != MSG_BLOCK)
                 pfrom->AskFor(inv);
-
 
             if (inv.type == MSG_BLOCK) {
                 UpdateBlockAvailability(pfrom->GetId(), inv.hash);
@@ -5025,6 +5034,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 }
             }
 
+            for (uint256 hash : vEraseQueue)
+                EraseOrphanTx(hash);
         } else if (fMissingInputs) {
             AddOrphanTx(tx, pfrom->GetId());
 
@@ -5252,11 +5263,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             } else {
                 sProblem = "Unsolicited pong without ping";
             }
-        } else {
-            // This is most likely a bug in another implementation somewhere, cancel this ping
-            bPingFinished = true;
-            sProblem = "Short payload";
         }
+
+//      else {
+//          // This is most likely a bug in another implementation somewhere, cancel this ping
+//          bPingFinished = true;
+//          sProblem = "Short payload";
+//      }
 
         if (!(sProblem.empty())) {
             LogPrint("net", "pong peer=%d %s: %s, %x expected, %x received, %u bytes\n",
@@ -5430,18 +5443,25 @@ bool ProcessMessages(CNode* pfrom)
                     msg.hdr.nMessageSize, msg.vRecv.size(),
                     msg.complete() ? "Y" : "N");
 
-        // end, if an incomplete message is found
-        if (!msg.complete())
-            break;
-
         /////////////////////////////////////////////////
        	CMessageHeader& hdr = msg.hdr;
        	string strCommand = hdr.GetCommand();
        	if (fDebug) LogPrintf("\e[32m%s\e[0m\n", strCommand.c_str());
         /////////////////////////////////////////////////
 
+        // end, if an incomplete message is found
+        if (!msg.complete())
+            break;
+
         // at this point, any failure means we can delete the current message
         it++;
+
+        // Scan for message start
+        if (memcmp(msg.hdr.pchMessageStart, Params().MessageStart(), MESSAGE_START_SIZE) != 0) {
+            LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()), pfrom->id);
+            fOk = false;
+            break;
+        }
 
         // Read header
         if (!hdr.IsValid()) {
@@ -5466,17 +5486,16 @@ bool ProcessMessages(CNode* pfrom)
 
         // Process message
         bool fRet = false;
-        /////////////////////////////////////////////////
-        if (fDebug) {
+	/////////////////////////////////////////////////
+	if (fDebug) {
 		char msgbuf[65536] = {0};
 		unsigned int msglen = vRecv.size();
-                if (msglen>65536) msglen = 65535;
-		memcpy(msgbuf, vRecv.str().c_str(), msglen);
-		for (unsigned int i = 0; i < msglen; i++)
-		  printf("%02hhx", msgbuf[i]);
-		printf("\n");
-        }
-        /////////////////////////////////////////////////
+		if (msglen>65536) msglen = 65535;
+       	       	memcpy(msgbuf, vRecv.str().c_str(), msglen);
+		for (unsigned int i = 0; i < msglen; i++) printf("%02hhx", msgbuf[i]);
+       	       	printf("\n");
+	}
+	/////////////////////////////////////////////////
         try {
             fRet = ProcessMessage(pfrom, strCommand, vRecv, msg.nTime);
             boost::this_thread::interruption_point();
@@ -5515,6 +5534,10 @@ bool ProcessMessages(CNode* pfrom)
 
 bool SendMessages(CNode* pto, bool fSendTrickle)
 {
+        // Don't send anything until we get their version message
+        if (pto->nVersion == 0)
+            return true;
+
         //
         // Message: ping
         //

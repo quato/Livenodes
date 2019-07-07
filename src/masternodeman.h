@@ -14,7 +14,6 @@
 #include "sync.h"
 #include "util.h"
 
-#define MASTERNODES_DUMP_SECONDS (15 * 60)
 #define MASTERNODES_DSEG_SECONDS (3 * 60 * 60)
 
 using namespace std;
@@ -65,10 +64,11 @@ private:
     std::map<CNetAddr, int64_t> mWeAskedForMasternodeList;
     // which Masternodes we've asked for
     std::map<COutPoint, int64_t> mWeAskedForMasternodeListEntry;
-
+    // who's asked for the winning Masternode list and the last time
     std::map<CNetAddr, int64_t> mAskedUsForWinnerMasternodeList;
     // who we asked for the winning Masternode list and the last time
     std::map<CNetAddr, int64_t> mWeAskedForWinnerMasternodeList;
+
 public:
     // Keep track of all broadcasts I've seen
     map<uint256, CMasternodeBroadcast> mapSeenMasternodeBroadcast;
