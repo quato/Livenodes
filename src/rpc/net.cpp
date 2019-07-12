@@ -405,3 +405,118 @@ UniValue getnetworkinfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("localaddresses", localAddresses));
     return obj;
 }
+
+UniValue setban(const UniValue& params, bool fHelp)
+{
+    string strCommand;
+    if (params.size() >= 2)
+        strCommand = params[1].get_str();
+    if (fHelp || params.size() < 2 ||
+        (strCommand != "add" && strCommand != "remove"))
+        throw runtime_error(
+            "setban \"ip(/netmask)\" \"add|remove\" (bantime) (absolute)\n"
+            "\nAttempts add or remove a IP/Subnet from the banned list.\n"
+
+            "\nArguments:\n"
+            "1. \"ip\"           (string, required) The IP (see getpeerinfo for nodes ip)\n"
+            "2. \"command\"      (string, required) 'add' to add a IP to the list, 'remove' to remove a IP from the list\n"
+            "3. \"bantime\"      (numeric, optional) time in seconds how long (or until when if [absolute] is set) the ip is banned (0 or empty means using the default time of 24h which can also be overwritten by the -bantime startup argument)\n"
+            "4. \"absolute\"     (boolean, optional) If set, the bantime must be a absolute timestamp in seconds since epoch (Jan 1 1970 GMT)\n"
+
+            "\nExamples:\n"
+            + HelpExampleCli("setban", "\"192.168.0.6\" \"add\" 86400")
+            + HelpExampleCli("setban", "\"192.168.0.0\" \"add\"")
+            + HelpExampleRpc("setban", "\"192.168.0.6\", \"add\" 86400"));
+
+    CNetAddr netAddr;
+    bool isSubnet = false;
+
+    netAddr = CNetAddr(params[0].get_str());
+
+    if (!netAddr.IsValid())
+        throw JSONRPCError(RPC_CLIENT_NODE_ALREADY_ADDED, "Error: Invalid IP");
+
+    if (strCommand == "add")
+    {
+        if (CNode::IsBanned(netAddr))
+            throw JSONRPCError(RPC_CLIENT_NODE_ALREADY_ADDED, "Error: IP/Subnet already banned");
+
+        int64_t banTime = 0; //use standard bantime if not specified
+        if (params.size() >= 3 && !params[2].isNull())
+            banTime = params[2].get_int64();
+
+        bool absolute = false;
+        if (params.size() == 4)
+            absolute = params[3].get_bool();
+
+        CNode::Ban(netAddr);
+
+        //disconnect possible nodes
+        while(CNode *bannedNode = (FindNode(netAddr)))
+            bannedNode->CloseSocketDisconnect();
+    }
+    else if(strCommand == "remove")
+    {
+        if (!CNode::Unban(netAddr))
+            throw JSONRPCError(RPC_MISC_ERROR, "Error: Unban failed");
+    }
+
+    return NullUniValue;
+}
+
+UniValue listbanned(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "listbanned\n"
+            "\nList all banned IPs/Subnets.\n"
+
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "    \"address\": \"xxx\",          (string) Network address of banned client.\n"
+            "    \"banned_until\": nnn,         (numeric) Timestamp when the ban is lifted.\n"
+            "    \"ban_created\": nnn,          (numeric) Timestamp when the ban was created.\n"
+            "    \"ban_reason\": \"xxx\"        (string) Reason for banning.\n"
+            "  }\n"
+            "  ,...\n"
+            "]\n"
+
+            "\nExamples:\n"
+            + HelpExampleCli("listbanned", "")
+            + HelpExampleRpc("listbanned", ""));
+
+    std::map<CNetAddr, int64_t> banMap;
+    CNode::GetBanned(banMap);
+
+    UniValue bannedAddresses(UniValue::VARR);
+    for (std::map<CNetAddr, int64_t>::iterator it = banMap.begin(); it != banMap.end(); it++)
+    {
+        CBanEntry banEntry = (*it).second;
+        UniValue rec(UniValue::VOBJ);
+        rec.push_back(Pair("address", (*it).first.ToString()));
+        rec.push_back(Pair("banned_until", banEntry.nBanUntil));
+        rec.push_back(Pair("ban_created", banEntry.nCreateTime));
+        rec.push_back(Pair("ban_reason", banEntry.banReasonToString()));
+
+        bannedAddresses.push_back(rec);
+    }
+
+    return bannedAddresses;
+}
+
+UniValue clearbanned(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "clearbanned\n"
+            "\nClear all banned IPs.\n"
+
+            "\nExamples:\n"
+            + HelpExampleCli("clearbanned", "")
+            + HelpExampleRpc("clearbanned", ""));
+
+    CNode::ClearBanned();
+
+    return NullUniValue;
+}
