@@ -522,6 +522,21 @@ bool CNode::Ban(const CNetAddr& addr)
     return true;
 }
 
+void CNode::GetBanned(std::map<CNetAddr, int64_t> &banMap)
+{
+    LOCK(cs_setBanned);
+    banMap = setBanned; //create a thread safe copy
+}
+
+bool CNode::Unban(const CNetAddr &addr)
+{
+    {
+        LOCK(cs_setBanned);
+        if (!setBanned.erase(addr))
+            return false;
+    }
+    return true;
+}
 
 std::vector<CSubNet> CNode::vWhitelistedRange;
 CCriticalSection CNode::cs_vWhitelistedRange;
